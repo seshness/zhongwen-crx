@@ -12,6 +12,11 @@ and pronunciation.
 
 ## Using it
 
+- **Site access is opt-in.** The extension installs with no website access.
+  Clicking the toolbar icon (or Alt+Shift+Z, or right-click → Look up) turns on
+  highlight lookup in that tab until it navigates. Tick **Look up highlights on
+  every site** at the bottom of the sidebar to have it work everywhere without
+  clicking first (Chrome asks you to confirm; untick to revoke).
 - **Highlight** Chinese text on a page. A single word opens its entry. A phrase
   or sentence is split into words and shown as a scrolling list of every word's
   pinyin, definitions and pronunciation, in order. Click a word (in the sentence
@@ -41,7 +46,7 @@ docs.
 | --- | --- |
 | `extension/manifest.json` | MV3 manifest (side panel, TTS, content script) |
 | `extension/content.js` | Watches selections on pages and sends Chinese text to the extension |
-| `extension/background.js` | Opens the panel, context menu, injects into already-open tabs |
+| `extension/background.js` | Opens the panel, context menu, injects the selection watcher (activeTab or opt-in all sites) |
 | `extension/sidepanel/dict.js` | CC-CEDICT parsing, segmentation, pinyin tone marks, search |
 | `extension/sidepanel/sidepanel.*` | Sidebar UI |
 | `extension/data/` | CC-CEDICT dictionary and its license notice |

@@ -1,6 +1,6 @@
 # Privacy Policy — Zhongwen character sidebar
 
-_Last updated: 18 October 2026_
+_Last updated: 18 October 2026 (site access is now opt-in)_
 
 Zhongwen character sidebar is a Chinese-English dictionary that runs inside
 your browser. It has no servers, no accounts and no advertising. Dictionary
@@ -10,8 +10,13 @@ off.
 
 ## What the extension accesses
 
-**Text you highlight on web pages.** When you select text on a page, the
-extension checks whether it contains Chinese characters. If it does, up to 300
+**Text you highlight on web pages.** The extension installs with no access to
+websites. It only watches for highlighted text in a tab after you click its
+toolbar icon, press its shortcut, or use its right-click menu in that tab
+(Chrome's "activeTab" access, which ends when the tab loads a new page), or on
+every site if you turn on "Look up highlights on every site" in the side panel
+(Chrome asks you to confirm). When you then select text, the extension checks
+whether it contains Chinese characters. If it does, up to 300
 characters of the selection are passed to the extension's side panel so they
 can be looked up. Selections without Chinese characters are ignored. The
 extension does not read any other content of the pages you visit, and it does
@@ -90,7 +95,8 @@ only if you click it.
 
 | Permission | Why |
 | --- | --- |
-| Read and change data on all websites (`<all_urls>`, `scripting`) | To notice when you highlight Chinese text on any page. The script only reads your selection. (This also lets the extension send usage statistics to Google Analytics.) |
+| Access to the current tab when you click the icon or use the right-click menu (`activeTab`, `scripting`) | To notice when you highlight Chinese text in that tab. The script only reads your selection. |
+| Optional: read and change data on all websites (`<all_urls>`) | Only if you turn on "Look up highlights on every site": lets the same selection watcher run on every page without clicking the icon first. You can turn it off in the side panel or in Chrome's extension settings. |
 | Side panel (`sidePanel`) | To show the dictionary beside the page. |
 | Storage (`storage`) | To remember your Traditional/Simplified choice, the last highlighted text, and the usage-statistics ID and setting, as described above. |
 | Text-to-speech (`tts`) | To pronounce words. |

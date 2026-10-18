@@ -315,7 +315,14 @@ function renderSearch({ q }) {
 function renderEmpty() {
   return [el('div', { class: 'empty' },
     el('span', { class: 'big', lang: zhLang() }, '中文'),
-    'Highlight Chinese text on any page to look it up here.',
+    'Highlight Chinese text on a page to look it up here.',
+    el('br'), el('br'),
+    allSitesGranted
+      ? 'Highlights are looked up on every site.'
+      : ['Highlighting works in tabs where you\u2019ve clicked the toolbar icon (or pressed ',
+         el('kbd', {}, 'Alt'), '+', el('kbd', {}, 'Shift'), '+', el('kbd', {}, 'Z'),
+         '), and right-click \u2192 Look up works anywhere. To skip that step, tick ',
+         '\u201cLook up highlights on every site\u201d below.'],
     el('br'), el('br'),
     'Click any linked word to follow it, and use ← → (or ',
     el('kbd', {}, 'Alt'), '+', el('kbd', {}, '←'), ') to go back.',
@@ -452,6 +459,34 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// Optional all-sites access. Without it, the content script only runs in tabs
+// where the user invoked the extension (activeTab). The background worker
+// registers/unregisters the content script when the permission changes.
+const ALL_SITES = { origins: ['<all_urls>'] };
+let allSitesGranted = false;
+
+async function initAllSitesToggle() {
+  const toggle = $('#all-sites-toggle');
+  const refresh = async () => {
+    allSitesGranted = await chrome.permissions.contains(ALL_SITES);
+    toggle.checked = allSitesGranted;
+    if (!history[pos]) render(); // the start screen describes the current mode
+  };
+  // request() must run directly in the click's user gesture, so no awaits first.
+  toggle.addEventListener('change', () => {
+    const before = allSitesGranted;
+    (toggle.checked ? chrome.permissions.request(ALL_SITES) : chrome.permissions.remove(ALL_SITES))
+      .catch(() => {})
+      .then(refresh) // reflects the real outcome, e.g. if the prompt was declined
+      .then(() => {
+        if (allSitesGranted !== before) track('all_sites_change', { enabled: allSitesGranted });
+      });
+  });
+  chrome.permissions.onAdded.addListener(refresh);
+  chrome.permissions.onRemoved.addListener(refresh);
+  await refresh();
+}
+
 // Usage-stats opt-out. Only shown in builds that have analytics credentials.
 async function initAnalyticsToggle() {
   if (!analyticsConfigured) return;
@@ -467,6 +502,7 @@ async function initAnalyticsToggle() {
 
 (async () => {
   initAnalyticsToggle();
+  initAllSitesToggle();
   track('page_view', { page_title: 'Side panel', page_location: location.href });
   const stored = await chrome.storage.local.get('script');
   if (stored.script === 'simp' || stored.script === 'trad') script = stored.script;

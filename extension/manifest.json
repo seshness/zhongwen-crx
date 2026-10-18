@@ -1,12 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Zhongwen character sidebar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minimum_chrome_version": "116",
   "homepage_url": "https://github.com/seshness/zhongwen-crx",
   "description": "Highlight Chinese text on any page to see pinyin, definitions and pronunciation in the side panel.",
-  "permissions": ["sidePanel", "storage", "tts", "contextMenus", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "tts",
+    "contextMenus",
+    "scripting",
+    "activeTab"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -29,16 +38,10 @@
   },
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Alt+Shift+Z" },
+      "suggested_key": {
+        "default": "Alt+Shift+Z"
+      },
       "description": "Open the Zhongwen character sidebar"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "all_frames": true,
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }

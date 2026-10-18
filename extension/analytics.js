@@ -72,8 +72,12 @@ export async function track(name, params = {}) {
         },
       }],
     };
+    // The extension has no host permission for google-analytics.com, so send
+    // a no-cors request: it is delivered normally, we just can't read the
+    // (empty) response.
     await fetch(`${ENDPOINT}?measurement_id=${MEASUREMENT_ID}&api_secret=${API_SECRET}`, {
       method: 'POST',
+      mode: 'no-cors',
       body: JSON.stringify(body),
     });
   } catch {

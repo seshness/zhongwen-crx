@@ -377,7 +377,7 @@ a.xref .xpy { color: var(--muted); font-size: 12px; margin-left: 1px; }
   font-size: 11px;
 }
 .credit a { color: inherit; }
-.analytics {
+.setting {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -385,5 +385,5 @@ a.xref .xpy { color: var(--muted); font-size: 12px; margin-left: 1px; }
   color: var(--muted);
   cursor: pointer;
 }
-.analytics[hidden] { display: none; }
-.analytics input { margin: 0; accent-color: var(--accent); }
+.setting[hidden] { display: none; }
+.setting input { margin: 0; accent-color: var(--accent); }
