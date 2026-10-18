@@ -1,4 +1,5 @@
 import { Dictionary, HAN_RE, pinyinSyllables, pinyinText } from './dict.js';
+import { analyticsConfigured, isAnalyticsEnabled, setAnalyticsEnabled, track } from '../analytics.js';
 
 const HAN = '\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff\\u{20000}-\\u{2ebef}';
 // CC-CEDICT cross-references: 開金|开金[kai1 jin1], 基友[ji1 you3], or bare 中文.
@@ -22,9 +23,17 @@ function saveScroll() {
   if (history[pos]) history[pos].scroll = view.scrollTop;
 }
 
-function navigate(state) {
+// `source` says how the lookup was triggered, for anonymous usage stats; the
+// looked-up text itself is never sent.
+function navigate(state, source = 'click') {
   const cur = history[pos];
   if (cur && sameState(cur, state)) return render();
+  track('lookup', {
+    source,
+    view: state.kind,
+    script,
+    ...(state.kind === 'text' && { words: dict.segment(state.text).filter((s) => s.entries.length).length }),
+  });
   saveScroll();
   history.splice(pos + 1);
   history.push(state);
@@ -37,12 +46,14 @@ function go(delta) {
   if (next < 0 || next >= history.length) return;
   saveScroll();
   pos = next;
+  track('history_nav', { direction: delta < 0 ? 'back' : 'forward' });
   render();
 }
 
 // Empties the back/forward stack and search box, returning to the start screen.
 // The stored page selection is dropped too so reopening the panel starts fresh.
 function clearAll() {
+  if (history.length || $('#search').value) track('clear');
   history.length = 0;
   pos = -1;
   $('#search').value = '';
@@ -50,16 +61,16 @@ function clearAll() {
   render();
 }
 
-function lookupText(text) {
+function lookupText(text, source) {
   text = text.trim();
   if (!text) return;
   if (HAN_RE.test(text)) {
     const segs = dict.segment(text);
     // A single dictionary word goes straight to its entry page.
-    if (segs.length === 1 && segs[0].entries.length) navigate({ kind: 'word', word: segs[0].text });
-    else navigate({ kind: 'text', text });
+    if (segs.length === 1 && segs[0].entries.length) navigate({ kind: 'word', word: segs[0].text }, source);
+    else navigate({ kind: 'text', text }, source);
   } else {
-    navigate({ kind: 'search', q: text });
+    navigate({ kind: 'search', q: text }, source);
   }
 }
 
@@ -125,8 +136,8 @@ function definitionEl(def) {
       title: py ? `${shown} ${pinyinText(py)}` : shown,
       onclick: (ev) => {
         ev.preventDefault();
-        if (dict.lookup(trad).length) navigate({ kind: 'word', word: trad, pinyin: py || null });
-        else lookupText(trad);
+        if (dict.lookup(trad).length) navigate({ kind: 'word', word: trad, pinyin: py || null }, 'definition_link');
+        else lookupText(trad, 'definition_link');
       },
     }, shown);
     if (py) link.append(el('span', { class: 'xpy' }, `[${pinyinText(py)}]`));
@@ -211,7 +222,7 @@ function chip(word, entries, onclick) {
 }
 
 function listRow(e) {
-  return el('button', { class: 'list-row', onclick: () => navigate({ kind: 'word', word: e.trad, pinyin: e.pinyin }) },
+  return el('button', { class: 'list-row', onclick: () => navigate({ kind: 'word', word: e.trad, pinyin: e.pinyin }, 'word_list') },
     hanziEl(primary(e), e.pinyin),
     pinyinEl(e.pinyin, 'py'),
     el('span', { class: 'gloss' }, e.defs.map(plainDef).join('; ')));
@@ -232,7 +243,7 @@ function renderWord({ word, pinyin }) {
       seen.add(c);
       const ce = dict.lookup(c);
       const display = shown[i] || c;
-      if (ce.length) chips.push(chip(display, ce, () => navigate({ kind: 'word', word: c })));
+      if (ce.length) chips.push(chip(display, ce, () => navigate({ kind: 'word', word: c }, 'character')));
     });
     if (chips.length) {
       out.push(el('div', { class: 'section-label' }, 'Characters'), el('div', { class: 'chips' }, chips));
@@ -279,7 +290,7 @@ function renderText({ text }) {
     const e = s.entries[0];
     const display = s.entries.find((x) => x.trad === s.text || x.simp === s.text);
     const shown = script === 'trad' ? display.trad : display.simp;
-    const open = () => navigate({ kind: 'word', word: s.text });
+    const open = () => navigate({ kind: 'word', word: s.text }, 'selection_word');
     sentence.append(el('button', { class: 'token', onclick: open, title: shortGloss(s.entries) },
       pinyinEl(e.pinyin, 'py'), hanziEl(shown, e.pinyin)));
     if (!seen.has(s.text)) {
@@ -356,8 +367,11 @@ async function pickVoice() {
   return voices.find((x) => !x.remote && matches(x, 'zh')) || voices.find((x) => matches(x, 'zh')) || null;
 }
 
+const voiceKind = (v) => (!v ? 'none' : v.remote ? 'remote' : 'local');
+
 async function speak(text, btn) {
   const voice = await pickVoice();
+  track('speak', { script, voice: voiceKind(voice) });
   btn?.classList.add('playing');
   const done = () => btn?.classList.remove('playing');
   chrome.tts.speak(text, {
@@ -389,7 +403,7 @@ $('#search-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const q = $('#search').value;
   $('#search').blur();
-  if (dict) lookupText(q);
+  if (dict) lookupText(q, 'search');
 });
 
 // The 繁/简 labels are selectable text: a plain click switches character set,
@@ -398,6 +412,7 @@ function setScript(value) {
   if (value === script) return;
   script = value;
   chrome.storage.local.set({ script });
+  track('script_change', { script });
   render();
 }
 
@@ -422,13 +437,14 @@ document.addEventListener('mouseup', (e) => {
     const text = window.getSelection()?.toString().trim();
     if (!dict || !text || !HAN_RE.test(text)) return;
     window.getSelection().removeAllRanges();
-    lookupText(text);
+    lookupText(text, 'panel_highlight');
   }, 0);
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'session' && changes.lastSelection?.newValue && dict) {
-    lookupText(changes.lastSelection.newValue.text);
+    const { text, source } = changes.lastSelection.newValue;
+    lookupText(text, source || 'page');
   }
   if (area === 'local' && changes.script && changes.script.newValue !== script) {
     script = changes.script.newValue; // Keep multiple windows' panels in sync.
@@ -436,7 +452,22 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// Usage-stats opt-out. Only shown in builds that have analytics credentials.
+async function initAnalyticsToggle() {
+  if (!analyticsConfigured) return;
+  const toggle = $('#analytics-toggle');
+  toggle.checked = await isAnalyticsEnabled();
+  $('#analytics-row').hidden = false;
+  toggle.addEventListener('change', async () => {
+    // Opting out sends nothing, not even an "opted out" event.
+    await setAnalyticsEnabled(toggle.checked);
+    if (toggle.checked) track('analytics_enabled');
+  });
+}
+
 (async () => {
+  initAnalyticsToggle();
+  track('page_view', { page_title: 'Side panel', page_location: location.href });
   const stored = await chrome.storage.local.get('script');
   if (stored.script === 'simp' || stored.script === 'trad') script = stored.script;
   render();
@@ -446,6 +477,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   console.log(`Loaded ${dict.entries.length} entries in ${Math.round(performance.now() - t0)} ms`);
 
   const { lastSelection } = await chrome.storage.session.get('lastSelection');
-  if (lastSelection?.text) lookupText(lastSelection.text);
+  if (lastSelection?.text) lookupText(lastSelection.text, lastSelection.source || 'page');
   else render();
 })();
