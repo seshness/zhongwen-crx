@@ -25,7 +25,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 
   chrome.contextMenus.create({
     id: 'zhongwen-lookup',
-    title: 'Look up “%s” in Zhongwen character sidebar',
+    title: `Look up “%s” in ${chrome.runtime.getManifest().name}`,
     contexts: ['selection'],
   });
 

@@ -8,7 +8,7 @@
 // Users can turn analytics off in the side panel; doing so also deletes the
 // random client ID. Nothing is sent when the build has no credentials.
 
-import { MEASUREMENT_ID, API_SECRET } from './analytics-config.js';
+import { MEASUREMENT_ID, API_SECRET, CHANNEL } from './analytics-config.js';
 
 const ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 const SESSION_EXPIRATION_MIN = 30;
@@ -68,6 +68,7 @@ export async function track(name, params = {}) {
           session_id: await getSessionId(),
           engagement_time_msec: DEFAULT_ENGAGEMENT_MSEC,
           extension_version: chrome.runtime.getManifest().version,
+          channel: CHANNEL,
           ...params,
         },
       }],

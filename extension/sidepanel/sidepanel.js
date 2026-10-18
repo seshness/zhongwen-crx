@@ -459,6 +459,20 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// BETA builds (name ends in "BETA") show their version and a feedback link.
+function initBetaRow() {
+  const { name, version, version_name: versionName } = chrome.runtime.getManifest();
+  if (!/\bBETA$/.test(name)) return;
+  const shown = versionName || version;
+  $('#beta-version').textContent = shown.replace(/ beta\b/, ''); // the tag already says BETA
+  $('#beta-feedback').href = 'https://github.com/seshness/zhongwen-crx/issues/new?' + new URLSearchParams({
+    labels: 'beta',
+    title: '[Beta] ',
+    body: `Version: ${shown}\nBrowser: ${navigator.userAgent}\n\nWhat happened?\n\nWhat did you expect?\n`,
+  });
+  $('#beta-row').hidden = false;
+}
+
 // Optional all-sites access. Without it, the content script only runs in tabs
 // where the user invoked the extension (activeTab). The background worker
 // registers/unregisters the content script when the permission changes.
@@ -501,6 +515,7 @@ async function initAnalyticsToggle() {
 }
 
 (async () => {
+  initBetaRow();
   initAnalyticsToggle();
   initAllSitesToggle();
   track('page_view', { page_title: 'Side panel', page_location: location.href });

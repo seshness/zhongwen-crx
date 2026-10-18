@@ -7,6 +7,7 @@
 //   node scripts/package.mjs              build both
 //   node scripts/package.mjs --zip        store zip only
 //   node scripts/package.mjs --crx        crx only
+//   node scripts/package.mjs --beta       unlisted BETA build (zip only), see below
 //   node scripts/package.mjs --no-analytics   build with analytics disabled
 //   node scripts/package.mjs --key PATH   signing key (default
 //                                         ~/.config/zhongwen-crx/extension.pem,
@@ -24,10 +25,20 @@
 // and written into the package's analytics-config.js. The copy in the
 // repository stays empty, so unpacked dev builds send nothing.
 //
+// BETA builds are uploaded as a separate, unlisted Web Store item. Per the
+// store's rules (developer.chrome.com/docs/webstore/cws-dashboard-distribution),
+// the name ends in "BETA" and the description starts with "THIS EXTENSION IS
+// FOR BETA TESTING", or both items risk takedown as repetitive content. The
+// beta package gets that name and description, the icons from beta/icons/, a
+// fourth version component (the git commit count, so every upload is newer)
+// and analytics events tagged channel=beta. The source in extension/ is
+// shared and unchanged.
+//
 // No dependencies; requires Node 18+.
 
 import { readFile, writeFile, mkdir, readdir, stat, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { deflateRawSync } from 'node:zlib';
 import crypto from 'node:crypto';
 import os from 'node:os';
@@ -49,7 +60,7 @@ const argv = process.argv.slice(2);
 const flag = (f) => argv.includes(f);
 const keyArg = argv.includes('--key') ? argv[argv.indexOf('--key') + 1] : null;
 const wantZip = flag('--zip') || !flag('--crx');
-const wantCrx = flag('--crx') || !flag('--zip');
+const wantCrx = !flag('--beta') && (flag('--crx') || !flag('--zip'));
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'zhongwen-crx');
 const DEFAULT_KEY = path.join(CONFIG_DIR, 'extension.pem');
 const ANALYTICS_CONFIG = path.join(CONFIG_DIR, 'analytics.json');
@@ -75,6 +86,9 @@ async function walk(rel = '') {
 
 if (!existsSync(path.join(EXT, 'manifest.json'))) fail('extension/manifest.json not found');
 const manifest = JSON.parse(await readFile(path.join(EXT, 'manifest.json'), 'utf8'));
+const beta = flag('--beta');
+// Package path -> replacement contents.
+const overrides = new Map();
 // Package path -> source path on disk.
 const sources = new Map();
 for (const rel of await walk()) if (!EXCLUDE.some((re) => re.test(rel))) sources.set(rel, path.join(EXT, rel));
@@ -83,6 +97,45 @@ for (const [rel, abs] of Object.entries(EXTRA)) {
   sources.set(rel, abs);
 }
 const files = [...sources.keys()];
+
+// ---- BETA variant -----------------------------------------------------------
+
+const BETA_DIR = path.join(ROOT, 'beta');
+const BETA_DESCRIPTION =
+  'THIS EXTENSION IS FOR BETA TESTING. Highlight Chinese text to see pinyin, definitions and audio in the side panel.';
+
+if (beta) {
+  if (flag('--crx')) fail('--beta builds are for the Web Store only (zip)');
+  let build, sha = 'unknown';
+  try {
+    build = Number(execFileSync('git', ['rev-list', '--count', 'HEAD'], { cwd: ROOT }).toString().trim());
+    sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT }).toString().trim();
+    // Uncommitted changes would reuse the last commit's build number.
+    if (execFileSync('git', ['status', '--porcelain'], { cwd: ROOT }).toString().trim()) {
+      sha += '-dirty';
+      console.warn('! Working tree has uncommitted changes; commit first so this build gets a new number.');
+    }
+  } catch {
+    fail('--beta needs git to number the build');
+  }
+  if (manifest.version.split('.').length > 3) fail('Use a 3-part manifest version; --beta adds the 4th');
+  const productionName = manifest.name;
+  manifest.name = `${productionName} BETA`;
+  manifest.version = `${manifest.version}.${build}`;
+  manifest.version_name = `${manifest.version} beta (${sha})`;
+  manifest.description = BETA_DESCRIPTION;
+  manifest.action.default_title = `Open ${manifest.name}`;
+  manifest.commands._execute_action.description = `Open the ${manifest.name}`;
+  overrides.set('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+  for (const rel of Object.values(manifest.icons)) {
+    const src = path.join(BETA_DIR, rel);
+    if (!existsSync(src)) fail(`Missing beta icon ${path.relative(ROOT, src)} (run node scripts/store-assets.mjs)`);
+    sources.set(rel, src);
+  }
+  if (!manifest.name.endsWith(' BETA')) fail('Beta name must end with "BETA"');
+  if (!manifest.description.startsWith('THIS EXTENSION IS FOR BETA TESTING')) fail('Beta description label missing');
+  if (manifest.name === productionName) fail('Beta name must differ from production');
+}
 
 // ---- Analytics credentials -------------------------------------------------
 
@@ -102,12 +155,12 @@ async function analyticsCredentials() {
 }
 
 const ga = await analyticsCredentials();
-// Package path -> replacement contents.
-const overrides = new Map();
+const channel = beta ? 'beta' : 'production';
 if (ga) {
   overrides.set('analytics-config.js',
     `// Generated by scripts/package.mjs.\nexport const MEASUREMENT_ID = ${JSON.stringify(ga.id)};\n` +
-    `export const API_SECRET = ${JSON.stringify(ga.secret)};\n`);
+    `export const API_SECRET = ${JSON.stringify(ga.secret)};\n` +
+    `export const CHANNEL = ${JSON.stringify(channel)};\n`);
 }
 
 // Every file the manifest points at must be in the package.
@@ -252,8 +305,8 @@ await mkdir(DIST, { recursive: true });
 const zip = await buildZip(files);
 const mb = (b) => `${(b.length / 1e6).toFixed(2)} MB`;
 
-console.log(`Packaging ${manifest.name} ${manifest.version} (${files.length} files)`);
-console.log(ga ? `  Analytics: enabled (${ga.id})`
+console.log(`Packaging ${manifest.name} ${manifest.version_name || manifest.version} (${files.length} files)`);
+console.log(ga ? `  Analytics: enabled (${ga.id}, channel=${channel})`
   : `  Analytics: disabled — no credentials (see ${path.relative(os.homedir(), ANALYTICS_CONFIG).replace(/^/, '~/')})`);
 if (wantZip) {
   const out = path.join(DIST, `${base}.zip`);

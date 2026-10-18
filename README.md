@@ -59,7 +59,8 @@ docs.
 | `scripts/build-fonts.py` | Builds `extension/fonts/ukai.woff2` from the AR PL UKai source |
 | `pyproject.toml`, `uv.lock` | Python tools for the font build (via uv) |
 | `scripts/store-assets.mjs` | Renders store screenshots and promo tiles |
-| `store/` | Store listing text and images |
+| `store/` | Store listing text and images (`LISTING.md`, `LISTING-BETA.md`) |
+| `beta/icons/` | Icons swapped into BETA builds |
 | `PRIVACY.md` | Privacy policy |
 
 ## Packaging
@@ -68,6 +69,7 @@ docs.
 npm run package        # builds both files below into dist/
 npm run package:zip    # dist/<name>-<version>.zip  → upload to the Chrome Web Store
 npm run package:crx    # dist/<name>-<version>.crx  → signed, for self-hosting
+npm run package:beta   # dist/<name>-beta-<version>.zip → the unlisted BETA item
 ```
 
 The package is the contents of `extension/` plus `LICENSE` (backups, dotfiles
@@ -82,6 +84,15 @@ a key inside the project folder, since Chrome would see it when loading the
 folder unpacked. Note that
 Chrome on Windows and macOS only installs `.crx` files from outside the store
 through enterprise policy.
+
+## Beta channel
+
+An unlisted **BETA** item runs in parallel with the production item for early
+feedback. `npm run package:beta` builds it from the same source with the
+store-required "BETA" name and "THIS EXTENSION IS FOR BETA TESTING"
+description, the slate icons in `beta/icons/`, a 4th version component from
+the git commit count, a "Send feedback" link in the side panel, and analytics
+tagged `channel=beta`. See `store/LISTING-BETA.md`.
 
 ## Publishing to the Chrome Web Store
 
@@ -128,7 +139,14 @@ from `$GA_MEASUREMENT_ID` / `$GA_API_SECRET` or from
 
 Get them in Google Analytics under **Admin → Data streams → (your Web stream)**:
 the Measurement ID is at the top, and **Measurement Protocol API secrets**
-creates the secret. Use `--no-analytics` to build without them. The secret is
+creates the secret. Use `--no-analytics` to build without them.
+
+Every event has a `channel` parameter: `production`, `beta` (from
+`npm run package:beta`), or `dev` (unpacked, which sends nothing). To filter
+reports by it, register it once in GA: **Admin → Custom definitions → Create
+custom dimension**, scope *Event*, event parameter `channel`. The same applies
+to the other event parameters you want to break down (`source`, `view`,
+`script`, …). The secret is
 readable by anyone who unpacks the extension (unavoidable with the
 Measurement Protocol); keeping it out of git just avoids advertising it.
 

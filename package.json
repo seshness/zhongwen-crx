@@ -10,7 +10,8 @@
     "check-dict": "node scripts/update-dictionary.mjs --check",
     "package": "node scripts/package.mjs",
     "package:zip": "node scripts/package.mjs --zip",
-    "package:crx": "node scripts/package.mjs --crx"
+    "package:crx": "node scripts/package.mjs --crx",
+    "package:beta": "node scripts/package.mjs --beta"
   },
   "engines": {
     "node": ">=18"
