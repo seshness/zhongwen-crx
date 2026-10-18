@@ -47,6 +47,8 @@ docs.
 | `extension/data/` | CC-CEDICT dictionary and its license notice |
 | `extension/fonts/` | Bundled Kai font and its license |
 | `extension/icons/` | Toolbar and store icons |
+| `extension/analytics.js` | Anonymous usage events (GA4 Measurement Protocol) |
+| `extension/analytics-config.js` | GA credentials; empty in git, filled in by the package script |
 | `scripts/update-dictionary.mjs` | Downloads and installs the latest CC-CEDICT |
 | `scripts/package.mjs` | Builds the store `.zip` and signed `.crx` |
 | `scripts/build-fonts.py` | Builds `extension/fonts/ukai.woff2` from the AR PL UKai source |
@@ -100,6 +102,30 @@ uv run scripts/build-fonts.py
 
 [uv](https://docs.astral.sh/uv/) installs the Python tools listed in
 `pyproject.toml` (exact versions are pinned in `uv.lock`).
+
+## Usage statistics
+
+The extension can send anonymous feature-usage events to Google Analytics 4
+via the [Measurement Protocol](https://developer.chrome.com/docs/extensions/how-to/integrate/google-analytics-4)
+(`extension/analytics.js`). Events never include looked-up text or page URLs;
+see `PRIVACY.md`. It's on by default in store builds, with a "Share anonymous
+usage stats" checkbox at the bottom of the side panel to turn it off.
+
+The credentials stay out of the repository. `extension/analytics-config.js` is
+committed empty, which disables analytics for unpacked development builds.
+`npm run package` writes the real values into the packaged copy of that file
+from `$GA_MEASUREMENT_ID` / `$GA_API_SECRET` or from
+`~/.config/zhongwen-crx/analytics.json`:
+
+```json
+{ "measurementId": "G-XXXXXXXXXX", "apiSecret": "..." }
+```
+
+Get them in Google Analytics under **Admin → Data streams → (your Web stream)**:
+the Measurement ID is at the top, and **Measurement Protocol API secrets**
+creates the secret. Use `--no-analytics` to build without them. The secret is
+readable by anyone who unpacks the extension (unavoidable with the
+Measurement Protocol); keeping it out of git just avoids advertising it.
 
 ## Updating the dictionary
 

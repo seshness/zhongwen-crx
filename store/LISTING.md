@@ -7,6 +7,9 @@ images with `node scripts/store-assets.mjs`; build the upload with
 ## Before submitting
 
 - [ ] Commit and push `PRIVACY.md` so the privacy policy URL below resolves.
+- [ ] Put the GA4 credentials in `~/.config/zhongwen-crx/analytics.json` and
+      check `npm run package` prints "Analytics: enabled". Confirm events in
+      GA4 **Realtime** (or DebugView) from the built package before uploading.
 - [ ] Verify the developer account contact email in the dashboard.
 - [ ] Load `dist/*.zip` (unzipped) via **Load unpacked** and do a final manual
       pass: highlight on a few sites, 繁/简, back/forward, ✕, speaker, search,
@@ -43,7 +46,7 @@ images with `node scripts/store-assets.mjs`; build the upload with
 > • Light and dark themes follow your system.
 >
 > PRIVACY
-> Lookups happen entirely on your computer. The extension has no servers, no accounts and no analytics, and only reads text you highlight that contains Chinese characters.
+> Lookups happen entirely on your computer, and the extension only reads text you highlight that contains Chinese characters. It sends anonymous feature-usage statistics (for example, "a lookup happened" or "the speaker was used", never the words you look up or the pages you visit) to Google Analytics; you can turn this off with one click at the bottom of the side panel. Full details: https://github.com/seshness/zhongwen-crx/blob/main/PRIVACY.md
 >
 > HOW TO USE
 > Click the toolbar icon (or press Alt+Shift+Z) to open the side panel, then highlight Chinese text on any page. You can also right-click a selection and choose "Look up in Zhongwen character sidebar".
@@ -78,11 +81,11 @@ images with `node scripts/store-assets.mjs`; build the upload with
 | Permission | Justification |
 | --- | --- |
 | `sidePanel` | The extension's entire interface is a side panel that shows dictionary entries beside the page being read. |
-| `storage` | Stores the user's Traditional/Simplified preference (local) and the most recently highlighted text (session, in memory) so the side panel can display it when opened. |
+| `storage` | Stores the user's Traditional/Simplified preference (local), the most recently highlighted text (session, in memory) so the side panel can display it when opened, and the anonymous usage-statistics ID and opt-out setting. |
 | `tts` | Pronounces Chinese words when the user presses a speaker button. |
 | `contextMenus` | Adds a "Look up in Zhongwen character sidebar" item for selected text. |
 | `scripting` | On install, adds the selection-watching content script to tabs that were already open, so the user doesn't have to reload them. |
-| Host permission `<all_urls>` | Users read Chinese on any website; the content script must run on all pages to detect when the user highlights Chinese text. It only reads the current selection, and only forwards it if it contains Chinese characters. |
+| Host permission `<all_urls>` | Users read Chinese on any website; the content script must run on all pages to detect when the user highlights Chinese text. It only reads the current selection, and only forwards it if it contains Chinese characters. The extension also sends anonymous usage events to www.google-analytics.com (disclosed in the privacy policy; users can opt out). |
 
 **Remote code** — No, I am not using remote code. (All JavaScript is in the
 package; the dictionary and font are bundled files.)
@@ -90,11 +93,15 @@ package; the dictionary and font are bundled files.)
 **Data usage** — check:
 
 - [x] **Website content** — text the user highlights, when it contains Chinese
-      characters. Processed locally to show dictionary entries; not transmitted.
+      characters. Processed locally to show dictionary entries; never
+      transmitted.
+- [x] **User activity** — anonymous feature-usage events (which buttons and
+      lookup methods are used, no content), sent to Google Analytics with a
+      random ID; on by default with an opt-out in the side panel.
 
 Leave all other categories unchecked (no personally identifiable, health,
-financial, authentication, personal communications, location, web history or
-user activity data).
+financial, authentication, personal communications, location or web history
+data). The random analytics ID is not personally identifiable.
 
 Certify all three:
 

@@ -377,3 +377,13 @@ a.xref .xpy { color: var(--muted); font-size: 12px; margin-left: 1px; }
   font-size: 11px;
 }
 .credit a { color: inherit; }
+.analytics {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.analytics[hidden] { display: none; }
+.analytics input { margin: 0; accent-color: var(--accent); }
