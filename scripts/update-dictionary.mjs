@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Downloads the latest CC-CEDICT into data/cedict_ts.u8.
+// Downloads the latest CC-CEDICT into extension/data/cedict_ts.u8.
 //
 //   node scripts/update-dictionary.mjs           download and install
 //   node scripts/update-dictionary.mjs --check   only report whether an update exists
@@ -19,7 +19,7 @@ import path from 'node:path';
 const URL_GZ = process.env.CEDICT_URL ||
   'https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DEST = path.join(ROOT, 'data', 'cedict_ts.u8');
+const DEST = path.join(ROOT, 'extension', 'data', 'cedict_ts.u8');
 // Same pattern sidepanel/dict.js uses to parse entries.
 const LINE_RE = /^(\S+) (\S+) \[([^\]]*)\] \/(.*)\/\s*$/;
 
@@ -116,4 +116,5 @@ await rename(tmp, DEST);
 const { size } = await stat(DEST);
 console.log(`✓ Installed ${path.relative(ROOT, DEST)} (${(size / 1e6).toFixed(1)} MB).`);
 if (current) console.log(`  Previous version saved as ${path.relative(ROOT, DEST)}.bak`);
-console.log('  Reload the extension in chrome://extensions to use it.');
+console.log('  Rebuild the font so new characters are covered: uv run scripts/build-fonts.py');
+console.log('  Then reload the extension in chrome://extensions.');

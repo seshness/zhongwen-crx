@@ -9,7 +9,7 @@ chrome.sidePanel
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
     id: 'zhongwen-lookup',
-    title: 'Look up “%s” in Zhongwen sidebar',
+    title: 'Look up “%s” in Zhongwen character sidebar',
     contexts: ['selection'],
   });
 

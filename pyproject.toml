@@ -1,0 +1,16 @@
+# Python tooling for scripts/build-fonts.py. Not a Python package; uv just
+# manages the environment. Exact versions are pinned in uv.lock.
+#
+#   uv run scripts/build-fonts.py
+
+[project]
+name = "zhongwen-character-sidebar-tools"
+version = "0"
+requires-python = ">=3.9"
+dependencies = [
+    "fonttools",
+    "brotli",   # WOFF2 compression for fontTools
+]
+
+[tool.uv]
+package = false

@@ -1,3 +1,16 @@
+/* Chinese text is set in AR PL UKai, a Kai (楷书) face bundled in fonts/
+   (Arphic Public License; see fonts/README.md). unicode-range limits it to CJK
+   so Latin text and pinyin inside Chinese elements keep the UI font, and the
+   browser only loads the file once Chinese text is shown. Characters the font
+   lacks fall back to the system's Chinese font. */
+@font-face {
+  font-family: "ZW UKai";
+  src: url("../fonts/ukai.woff2") format("woff2");
+  font-display: swap;
+  unicode-range: U+2E80-2FDF, U+3000-303F, U+3100-312F, U+31C0-31EF, U+3400-4DBF,
+                 U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF, U+20000-2FA1F;
+}
+
 :root {
   --bg: #faf7f2;
   --surface: #ffffff;
@@ -16,8 +29,10 @@
   --tone5: #8a837b;
 
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-hant: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
-  --font-hans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", "Heiti SC", sans-serif;
+  --font-hant: "ZW UKai", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-hans: "ZW UKai", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   color-scheme: light;
 }
 
@@ -245,6 +260,22 @@ main {
 }
 .speak svg { width: 16px; height: 16px; }
 .speak.playing { color: var(--accent); border-color: var(--accent); }
+
+.open { flex: none; width: 34px; height: 34px; margin-left: -6px; color: var(--faint); }
+.open:hover { color: var(--accent); }
+
+.headword-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.headword-link:hover .hanzi { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 6px; }
+
+/* Consecutive cards for the same word (e.g. 繁 and its variant 緐) sit closer. */
+.word-block + .word-block { margin-top: 14px; }
+.word-block .card + .card { margin-top: 6px; }
 
 .reading + .reading {
   margin-top: 10px;

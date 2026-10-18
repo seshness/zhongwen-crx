@@ -14,9 +14,18 @@ let pos = -1;
 
 // ---- Navigation -----------------------------------------------------------
 
+// History entries carry a `scroll` offset so going back to a long list of
+// words returns to where you were.
+const sameState = (a, b) => JSON.stringify({ ...a, scroll: 0 }) === JSON.stringify({ ...b, scroll: 0 });
+
+function saveScroll() {
+  if (history[pos]) history[pos].scroll = view.scrollTop;
+}
+
 function navigate(state) {
   const cur = history[pos];
-  if (cur && JSON.stringify(cur) === JSON.stringify(state)) return render();
+  if (cur && sameState(cur, state)) return render();
+  saveScroll();
   history.splice(pos + 1);
   history.push(state);
   pos = history.length - 1;
@@ -26,6 +35,7 @@ function navigate(state) {
 function go(delta) {
   const next = pos + delta;
   if (next < 0 || next >= history.length) return;
+  saveScroll();
   pos = next;
   render();
 }
@@ -140,8 +150,18 @@ function speakButton(text) {
 
 // ---- Views ----------------------------------------------------------------
 
+// Entries whose headword (in the current script) is the word itself come first,
+// ahead of e.g. old variants that merely simplify to it.
+function sortedEntries(word) {
+  const rank = (e) => (primary(e) === word ? 0 : e.trad === word ? 1 : 2);
+  return dict.lookup(word).sort((a, b) => rank(a) - rank(b));
+}
+
+const CHEVRON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+
 // One card per distinct traditional/simplified pair, with each reading listed.
-function entryCards(entries, preferPinyin) {
+// With `open`, the headword links to the word's dedicated page.
+function entryCards(entries, preferPinyin, open) {
   const groups = new Map();
   for (const e of entries) {
     const key = `${e.trad}\t${e.simp}`;
@@ -157,15 +177,23 @@ function entryCards(entries, preferPinyin) {
     const head = group[0];
     const word = primary(head);
     const other = secondary(head);
-    const hz = hanziEl(word, group.every((e) => norm(e.pinyin) === norm(head.pinyin)) ? head.pinyin : null,
+    let hz = hanziEl(word, group.every((e) => norm(e.pinyin) === norm(head.pinyin)) ? head.pinyin : null,
       `hanzi${Array.from(word).length > 4 ? ' long' : ''}`);
+    let openBtn = null;
+    if (open) {
+      openBtn = el('button', { class: 'icon-btn open', title: `Open ${word}`, onclick: open });
+      openBtn.innerHTML = CHEVRON_SVG;
+      const link = el('button', { class: 'headword-link', title: `Open ${word}`, onclick: open }, hz);
+      hz = link;
+    }
     cards.push(el('section', { class: 'card' },
       el('div', { class: 'head' },
         el('div', { class: 'head-text' },
           hz,
           other !== word && el('span', { class: 'alt', lang: script === 'trad' ? 'zh-Hans' : 'zh-Hant',
             title: script === 'trad' ? 'Simplified' : 'Traditional' }, other)),
-        speakButton(word)),
+        speakButton(word),
+        openBtn),
       group.map((e) => el('div', { class: 'reading' },
         pinyinEl(e.pinyin),
         el('ol', { class: 'defs' }, e.defs.map(definitionEl)))),
@@ -190,10 +218,7 @@ function listRow(e) {
 }
 
 function renderWord({ word, pinyin }) {
-  // Entries whose headword (in the current script) is the word itself come first,
-  // ahead of e.g. old variants that merely simplify to it.
-  const rank = (e) => (primary(e) === word ? 0 : e.trad === word ? 1 : 2);
-  const entries = dict.lookup(word).sort((a, b) => rank(a) - rank(b));
+  const entries = sortedEntries(word);
   if (!entries.length) return renderText({ text: word });
   const out = [...entryCards(entries, pinyin)];
 
@@ -243,7 +268,7 @@ function findCompounds(word, limit) {
 function renderText({ text }) {
   const segs = dict.segment(text);
   const sentence = el('div', { class: 'sentence' });
-  const rows = [];
+  const details = [];
   const seen = new Set();
   for (const s of segs) {
     if (!s.entries.length) {
@@ -259,11 +284,14 @@ function renderText({ text }) {
       pinyinEl(e.pinyin, 'py'), hanziEl(shown, e.pinyin)));
     if (!seen.has(s.text)) {
       seen.add(s.text);
-      rows.push(chip(shown, s.entries, open));
+      details.push(el('div', { class: 'word-block' }, entryCards(sortedEntries(s.text), null, open)));
     }
   }
   const out = [el('div', { class: 'section-label' }, 'Selection'), sentence];
-  if (rows.length) out.push(el('div', { class: 'section-label' }, 'Words'), el('div', { class: 'chips' }, rows));
+  if (details.length) {
+    out.push(el('div', { class: 'section-label' }, `${details.length} word${details.length > 1 ? 's' : ''}`),
+      ...details);
+  }
   return out;
 }
 
@@ -299,7 +327,7 @@ function render() {
     : state.kind === 'text' ? renderText(state)
     : renderSearch(state);
   view.replaceChildren(...nodes);
-  view.scrollTop = 0;
+  view.scrollTop = state?.scroll || 0;
 
   const input = $('#search');
   if (document.activeElement !== input) {
@@ -311,15 +339,21 @@ function render() {
 
 let voices = null;
 
+// Mandarin voice for the current script. Voices installed on the device are
+// preferred; Chrome's "remote" (Google network) voices send the text to Google,
+// so they are used only when no local Mandarin voice exists.
 async function pickVoice() {
   if (!voices) voices = await chrome.tts.getVoices();
-  const want = script === 'trad' ? ['zh-TW', 'zh-HK', 'zh-CN'] : ['zh-CN', 'zh-TW', 'zh-HK'];
-  for (const lang of want) {
-    // zh-HK voices speak Cantonese; only fall back to them as a last resort.
-    const v = voices.find((x) => x.lang && x.lang.replace('_', '-').startsWith(lang));
-    if (v && lang !== 'zh-HK') return v;
+  const langs = script === 'trad' ? ['zh-TW', 'zh-CN'] : ['zh-CN', 'zh-TW'];
+  const matches = (v, lang) => v.lang && v.lang.replace('_', '-').startsWith(lang);
+  for (const remote of [false, true]) {
+    for (const lang of langs) {
+      const v = voices.find((x) => !!x.remote === remote && matches(x, lang));
+      if (v) return v;
+    }
   }
-  return voices.find((x) => x.lang && x.lang.startsWith('zh')) || null;
+  // zh-HK voices speak Cantonese, so they are a last resort.
+  return voices.find((x) => !x.remote && matches(x, 'zh')) || voices.find((x) => matches(x, 'zh')) || null;
 }
 
 async function speak(text, btn) {
