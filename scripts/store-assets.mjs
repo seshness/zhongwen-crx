@@ -4,6 +4,7 @@
 //   screenshot-1..4.png   1280x800  the real side panel beside a sample article
 //   promo-small.png        440x280  small promo tile (required)
 //   promo-marquee.png     1400x560  marquee promo tile (optional)
+//   ../beta/icons/*.png               BETA item icons (16, 48, 128)
 //
 //   node scripts/store-assets.mjs
 //
@@ -109,6 +110,27 @@ function promoPage(q) {
   </body></html>`;
 }
 
+// BETA icon: the production design on slate instead of red, with an amber
+// "BETA" band where there's room. 128px keeps the store's 96px artwork +
+// 16px transparent padding.
+function betaIconPage(q) {
+  const size = Number(q.get('size'));
+  const art = size === 128 ? 96 : size;
+  const band = size >= 48;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body { margin: 0; background: transparent; }
+    .wrap { width: ${size}px; height: ${size}px; display: grid; place-items: center; }
+    .icon { position: relative; overflow: hidden; width: ${art}px; height: ${art}px; border-radius: ${Math.round(art / 4.8)}px;
+      background: #34405a; color: #fff; display: grid; place-items: center;
+      font: 600 ${Math.round(art * (band ? 0.6 : 0.68))}px/1 ${HANT}; }
+    .icon span { margin-top: ${band ? -Math.round(art * 0.16) : 0}px; }
+    .band { position: absolute; left: 0; right: 0; bottom: 0; height: ${Math.round(art * 0.27)}px;
+      background: #e0a526; color: #1f1c19; display: grid; place-items: center;
+      font: 800 ${Math.round(art * 0.2)}px/1 ${FONT}; letter-spacing: .06em; }
+  </style></head><body><div class="wrap"><div class="icon"><span>中</span>
+    ${band ? '<div class="band">BETA</div>' : ''}</div></div></body></html>`;
+}
+
 // ---- Server -----------------------------------------------------------------
 
 const server = http.createServer(async (req, res) => {
@@ -118,6 +140,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/panel') body = await panelPage(url.searchParams);
     else if (url.pathname === '/shot') body = screenshotPage(url.searchParams);
     else if (url.pathname === '/promo') body = promoPage(url.searchParams);
+    else if (url.pathname === '/beta-icon') body = betaIconPage(url.searchParams);
     else {
       const file = path.join(EXT, path.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''));
       if (!file.startsWith(EXT)) throw new Error('outside extension/');
@@ -135,16 +158,18 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const run = promisify(execFile);
-async function shoot(name, urlPath, [w, h], { scale = 1, dark = false } = {}) {
+async function shoot(name, urlPath, [w, h], { scale = 1, dark = false, transparent = false } = {}) {
   const args = ['--headless', '--disable-gpu', '--hide-scrollbars', '--virtual-time-budget=8000',
     `--window-size=${w},${h}`, `--force-device-scale-factor=${scale}`,
     `--screenshot=${path.join(OUT, name)}`];
+  if (transparent) args.push('--default-background-color=00000000');
   if (dark) args.push('--force-dark-mode', '--blink-settings=preferredColorScheme=0');
   await run(CHROME, [...args, base + urlPath]);
-  console.log(`✓ store/${name}`);
+  console.log(`✓ ${path.relative(ROOT, path.join(OUT, name))}`);
 }
 
 await mkdir(OUT, { recursive: true });
+await mkdir(path.join(ROOT, 'beta', 'icons'), { recursive: true });
 const q = (o) => `?${new URLSearchParams(o)}`;
 try {
   await shoot('screenshot-1.png', `/shot${q({ highlight: '每天閱讀一點新聞或故事' })}`, [1280, 800]);
@@ -155,6 +180,9 @@ try {
   // tile at 2x and scale it down.
   await shoot('promo-small.png', `/promo${q({ size: 'small' })}`, [880, 560], { scale: 0.5 });
   await shoot('promo-marquee.png', `/promo${q({ size: 'marquee' })}`, [1400, 560]);
+  for (const size of [16, 48, 128]) {
+    await shoot(`../beta/icons/icon${size}.png`, `/beta-icon${q({ size })}`, [size, size], { transparent: true });
+  }
 } catch (err) {
   console.error(`✗ ${err.message}\nSet CHROME to your Chrome binary if it isn't at ${CHROME}.`);
   process.exitCode = 1;
