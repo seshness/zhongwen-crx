@@ -42,8 +42,14 @@ const KAI = `"ZW UKai", ${HANT}`;
 async function panelPage(q) {
   const html = await readFile(path.join(EXT, 'sidepanel/sidepanel.html'), 'utf8');
   const stub = `<base href="/sidepanel/"><script>
+    const noteError = (msg) => document.documentElement.setAttribute('data-error', String(msg));
+    addEventListener('error', (e) => noteError(e.message));
+    addEventListener('unhandledrejection', (e) => noteError(e.reason?.message || e.reason));
     window.chrome = {
-      runtime: { getURL: (p) => '/' + p },
+      runtime: {
+        getURL: (p) => '/' + p,
+        getManifest: () => ({ name: 'Zhongwen character sidebar', version: '0.0.0' }),
+      },
       tts: { getVoices: async () => [], speak() {} },
       permissions: { contains: async () => false, onAdded: { addListener() {} }, onRemoved: { addListener() {} } },
       storage: {
@@ -158,7 +164,21 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const run = promisify(execFile);
+
+// Loads the side panel on its own and fails if it errored or never finished
+// loading the dictionary, so a broken panel can't end up in a screenshot.
+async function checkPanel(params) {
+  const { stdout } = await run(CHROME, ['--headless', '--disable-gpu', '--virtual-time-budget=8000',
+    '--dump-dom', `${base}/panel?${new URLSearchParams(params)}`], { maxBuffer: 1e8 });
+  const error = /data-error="([^"]*)"/.exec(stdout)?.[1];
+  if (error) throw new Error(`Side panel error (${JSON.stringify(params)}): ${error}`);
+  if (stdout.includes('Loading dictionary')) throw new Error(`Side panel never loaded (${JSON.stringify(params)})`);
+}
 async function shoot(name, urlPath, [w, h], { scale = 1, dark = false, transparent = false } = {}) {
+  if (urlPath.startsWith('/shot')) {
+    const q = new URL(urlPath, base).searchParams;
+    await checkPanel({ text: q.get('text') || q.get('highlight') || '', script: q.get('script') || 'trad' });
+  }
   const args = ['--headless', '--disable-gpu', '--hide-scrollbars', '--virtual-time-budget=8000',
     `--window-size=${w},${h}`, `--force-device-scale-factor=${scale}`,
     `--screenshot=${path.join(OUT, name)}`];
@@ -184,7 +204,8 @@ try {
     await shoot(`../beta/icons/icon${size}.png`, `/beta-icon${q({ size })}`, [size, size], { transparent: true });
   }
 } catch (err) {
-  console.error(`✗ ${err.message}\nSet CHROME to your Chrome binary if it isn't at ${CHROME}.`);
+  console.error(`✗ ${err.message}`);
+  if (err.code === 'ENOENT') console.error(`Set CHROME to your Chrome binary if it isn't at ${CHROME}.`);
   process.exitCode = 1;
 } finally {
   server.close();
