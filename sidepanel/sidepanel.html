@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zhongwen</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="nav">
+      <button id="back" class="icon-btn" title="Back (Alt+←)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button id="forward" class="icon-btn" title="Forward (Alt+→)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+      <button id="clear" class="icon-btn" title="Clear history and search (Esc)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <form id="search-form" class="search" autocomplete="off">
+      <input id="search" type="search" placeholder="Search 中文, pinyin or English" spellcheck="false">
+    </form>
+    <div class="script-toggle" role="radiogroup" aria-label="Character set">
+      <span data-script="trad" role="radio" tabindex="0" title="Traditional — click to switch, highlight to look up" lang="zh-Hant">繁</span>
+      <span data-script="simp" role="radio" tabindex="0" title="Simplified — click to switch, highlight to look up" lang="zh-Hans">简</span>
+    </div>
+  </header>
+
+  <main id="view">
+    <div class="status">Loading dictionary…</div>
+  </main>
+
+  <footer class="credit">
+    Dictionary: <a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict" target="_blank" rel="noopener">CC-CEDICT</a> (CC BY-SA 4.0)
+  </footer>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

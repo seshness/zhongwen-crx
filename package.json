@@ -1,0 +1,14 @@
+{
+  "name": "zhongwen-sidebar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome side panel for looking up Chinese words with CC-CEDICT.",
+  "type": "module",
+  "scripts": {
+    "update-dict": "node scripts/update-dictionary.mjs",
+    "check-dict": "node scripts/update-dictionary.mjs --check"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
