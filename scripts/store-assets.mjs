@@ -44,6 +44,7 @@ async function panelPage(q) {
     window.chrome = {
       runtime: { getURL: (p) => '/' + p },
       tts: { getVoices: async () => [], speak() {} },
+      permissions: { contains: async () => false, onAdded: { addListener() {} }, onRemoved: { addListener() {} } },
       storage: {
         onChanged: { addListener() {} },
         local: { get: async () => ({ script: ${JSON.stringify(q.get('script') || 'trad')} }), set() {} },

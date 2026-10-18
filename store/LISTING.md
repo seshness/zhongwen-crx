@@ -12,7 +12,8 @@ images with `node scripts/store-assets.mjs`; build the upload with
       GA4 **Realtime** (or DebugView) from the built package before uploading.
 - [ ] Verify the developer account contact email in the dashboard.
 - [ ] Load `dist/*.zip` (unzipped) via **Load unpacked** and do a final manual
-      pass: highlight on a few sites, 繁/简, back/forward, ✕, speaker, search,
+      pass: icon click then highlight, right-click lookup, the "every site"
+      checkbox (grant and revoke), 繁/简, back/forward, ✕, speaker, search,
       right-click lookup.
 
 ---
@@ -49,7 +50,9 @@ images with `node scripts/store-assets.mjs`; build the upload with
 > Lookups happen entirely on your computer, and the extension only reads text you highlight that contains Chinese characters. It sends anonymous feature-usage statistics (for example, "a lookup happened" or "the speaker was used", never the words you look up or the pages you visit) to Google Analytics; you can turn this off with one click at the bottom of the side panel. Full details: https://github.com/seshness/zhongwen-crx/blob/main/PRIVACY.md
 >
 > HOW TO USE
-> Click the toolbar icon (or press Alt+Shift+Z) to open the side panel, then highlight Chinese text on any page. You can also right-click a selection and choose "Look up in Zhongwen character sidebar".
+> Click the toolbar icon (or press Alt+Shift+Z) to open the side panel, then highlight Chinese text on the page. You can also right-click a selection on any page and choose "Look up in Zhongwen character sidebar". To have highlights looked up on every site without clicking the icon first, tick "Look up highlights on every site" at the bottom of the side panel.
+>
+> The extension asks for no website access when you install it: it only sees the tab you've invoked it in, unless you opt in to every site.
 >
 > CREDITS
 > Dictionary data: CC-CEDICT (https://www.mdbg.net/chinese/dictionary?page=cc-cedict), licensed under CC BY-SA 4.0.
@@ -84,8 +87,9 @@ images with `node scripts/store-assets.mjs`; build the upload with
 | `storage` | Stores the user's Traditional/Simplified preference (local), the most recently highlighted text (session, in memory) so the side panel can display it when opened, and the anonymous usage-statistics ID and opt-out setting. |
 | `tts` | Pronounces Chinese words when the user presses a speaker button. |
 | `contextMenus` | Adds a "Look up in Zhongwen character sidebar" item for selected text. |
-| `scripting` | On install, adds the selection-watching content script to tabs that were already open, so the user doesn't have to reload them. |
-| Host permission `<all_urls>` | Users read Chinese on any website; the content script must run on all pages to detect when the user highlights Chinese text. It only reads the current selection, and only forwards it if it contains Chinese characters. The extension also sends anonymous usage events to www.google-analytics.com (disclosed in the privacy policy; users can opt out). |
+| `activeTab` | When the user clicks the toolbar icon, presses the shortcut, or uses the context menu, the extension adds its selection watcher to that tab so further highlights there are looked up. No site access is requested at install. |
+| `scripting` | Injects the selection-watching content script into the active tab (via activeTab) and, only if the user opts in to all-sites access, registers it for all pages. |
+| Optional host permission `<all_urls>` | Requested at runtime only when the user ticks "Look up highlights on every site" in the side panel, for users who want highlights looked up on any site without clicking the icon first. The script only reads the current selection, and only forwards it if it contains Chinese characters. Can be turned off in the side panel. |
 
 **Remote code** — No, I am not using remote code. (All JavaScript is in the
 package; the dictionary and font are bundled files.)
